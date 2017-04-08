@@ -1,0 +1,35 @@
+#!/usr/local/bin/ruby
+require 'tty'
+require 'socket'
+
+def isNumeric(something)
+  something.is_a? Numeric
+end
+
+def guessLocalIp
+  ip = Socket.ip_address_list.detect{|intf| intf.ipv4_private?}
+  ip.ip_address if ip
+end
+
+def getAVDs
+  %x(emulator -list-avds).split("\n")
+end
+
+def createEmu(cmd, config)
+  cmd.run("#{ENV['ANDROID_HOME']}/emulator/emulator -avd #{config[:avd]} -http-proxy #{config[:host]}:#{config[:port]}")
+end
+
+prompt = TTY::Prompt.new
+cmd = TTY::Command.new
+
+if !ENV['ANDROID_HOME'] || !File.exist?(ENV['ANDROID_HOME']) then abort("$ANDROID_HOME not setted as an enviroment variable!. See http://stackoverflow.com/a/36201240/1704441") end
+if getAVDs().size == 0 then abort("No AVD created. See https://developer.android.com/studio/run/managing-avds.html") end
+
+config = prompt.collect do
+  key(:avd).select("Choose Emulator AVD", getAVDs())
+  key(:host).ask("Enter Proxy Host", default: guessLocalIp(), convert: :string)
+  key(:port).ask("Enter Proxy Port", default: '8888', convert: :int)
+end
+
+prompt.ok("Creating Emulator...")
+createEmu(cmd, config)
